@@ -4,14 +4,14 @@ from zipfile import ZipFile
 import io
 
 # ============================================================================
-# FUNÇÃO COMPLETA COM TODAS AS REGRAS DE NEGÓCIO ATUALIZADAS
+# FUNÇÃO FINAL COM A LÓGICA DE TRATAMENTO DE ERROS CORRIGIDA
 # ============================================================================
 def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
     resumos = []
     
     try:
         with ZipFile(io.BytesIO(arquivo_zip_bytes), 'r') as zip_ref:
-            arquivos_csv = [f for f in zip_ref.namelist() if f.upper().endswith('.CSV')]
+            arquivos_csv = sorted([f for f in zip_ref.namelist() if f.upper().endswith('.CSV')])
             
             if not arquivos_csv:
                 st.error("Nenhum arquivo .csv ou .CSV foi encontrado dentro do arquivo ZIP.")
@@ -19,17 +19,25 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
 
             for arquivo in arquivos_csv:
                 with zip_ref.open(arquivo) as f:
-                    df = pd.read_csv(f, encoding='ISO-8859-1')
+                    df = pd.read_csv(f, encoding='ISO-8859-1', header=None)
+                    
                     if df.empty:
                         continue
+                        
                     df_filtrado = df.iloc[:, [0, 1, 2, 5]].copy()
                     df_filtrado.columns = ['id', 'data', 'hora', 'vazao_total']
-                    df_filtrado['vazao_total'] = pd.to_numeric(df_filtrado['vazao_total'], errors='coerce').fillna(0)
+                    
+                    # --- CORREÇÃO FINAL: Replicando a lógica do seu script de teste ---
+                    # 1. Tenta converter para número. Se falhar, o valor vira NaN (Not a Number).
+                    df_filtrado['vazao_total'] = pd.to_numeric(df_filtrado['vazao_total'], errors='coerce')
+                    # 2. Remove completamente as linhas onde a conversão falhou (valores NaN).
+                    df_filtrado.dropna(subset=['vazao_total'], inplace=True)
 
-                    # --- MUDANÇA FINAL NA LÓGICA: Tempo de Bombeamento ---
-                    # Calcula a diferença entre cada leitura de vazão
+                    # Se o dataframe ficou vazio após a limpeza, pula para o próximo arquivo
+                    if df_filtrado.empty:
+                        continue
+                    
                     dif_vazao = df_filtrado['vazao_total'].diff().fillna(0)
-                    # Conta apenas os bombeamentos onde a variação foi de 2m³ ou mais
                     bombeamentos = (dif_vazao >= 2).sum()
                     
                     resumos.append({
@@ -41,7 +49,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
                     })
 
         if not resumos:
-            st.error("Processamento concluído, mas nenhum arquivo CSV válido foi encontrado.")
+            st.error("Processamento concluído, mas nenhum arquivo CSV com dados válidos foi encontrado.")
             return None
 
         # --- Preparação do DataFrame Final ---
@@ -91,7 +99,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
             for col_num, value in enumerate(df_final_formatado.columns.values):
                 worksheet.write(0, col_num, value, header_format)
 
-            worksheet.set_column('A:A', 18); worksheet.set_column('B:B', 18); worksheet.set_column('C:C', 22, integer_format); worksheet.set_column('D:D', 20, decimal_format)
+            worksheet.set_column('A:A', 18); worksheet.set_column('B:B', 18); worksheet.set_column('C:C', 22, integer_format); worksheet.set_column('D:D', 20, text_format)
             worksheet.set_column('E:E', 25, decimal_format); worksheet.set_column('F:F', 20, integer_format); worksheet.set_column('G:G', 25, decimal_format)
 
             chart = workbook.add_chart({'type': 'column'})
@@ -113,25 +121,19 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
 # INTERFACE DO USUÁRIO COM STREAMLIT
 # ============================================================================
 st.set_page_config(page_title="Gerador de Resumo Mensal", layout="centered")
-
 st.title("Gerador de Resumo de Consumo Mensal")
 st.write("Por favor, envie o arquivo .ZIP com os relatórios diários para gerar o resumo em Excel.")
-
 outorga_input = st.number_input(
     label="Defina a Outorga Diária (m³):",
     min_value=0,
     value=9600,
     step=100
 )
-
 uploaded_file = st.file_uploader("Escolha o arquivo ZIP", type="zip")
-
 if uploaded_file is not None:
     bytes_data = uploaded_file.getvalue()
-    
     with st.spinner("Processando os arquivos... Por favor, aguarde."):
         resultado_excel = processar_zip(bytes_data, outorga_input)
-    
     if resultado_excel:
         st.success("Resumo gerado com sucesso!")
         st.download_button(
