@@ -96,10 +96,10 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
         df_final = pd.concat([df_final, df_total_row], ignore_index=True)
 
         # Adicionando o nome da nova coluna para exibição
-        nomes_visuais = {'data': 'Data', 'hora_final': 'Hora Final Leitura', 'vazao_total_final': 'Vazão Acumulada Final', 
-                         'vazao_diaria': 'Consumo Diário (m³)', 'tempo_total_bombeamento_horas': 'Tempo de Bombeamento (h)',
-                         'tempo_bombeamento_hhmm': 'Tempo (HH:MM)',
-                         'vazao_outorgada': 'Outorga Diária (m³)', 'porcentagem_consumo_vazao': '% Consumido da Outorga'}
+        nomes_visuais = {'data': 'Data', 'hora_final': 'Hora Leitura', 'vazao_total_final': 'Leitura do medidor em m³ acumulado', 
+                         'vazao_diaria': 'Consumo (m³/dia)', 'tempo_total_bombeamento_horas': 'Tempo Total de Bombeamento (h)',
+                         'tempo_bombeamento_hhmm': 'Tempo Total de Bombeamento (h:min)',
+                         'vazao_outorgada': 'Vazão Outorgada Diária (m³)', 'porcentagem_consumo_vazao': 'Consumo Diário x Vazão Outorgada (%)'}
         df_final_formatado = df_final.rename(columns=nomes_visuais)
 
         # --- Criação do Arquivo Excel em Memória ---
@@ -122,7 +122,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
             worksheet.set_column('A:A', 18) # Data
             worksheet.set_column('B:B', 18) # Hora Final Leitura
             worksheet.set_column('C:C', 22, integer_format) # Vazão Acumulada Final
-            worksheet.set_column('D:D', 20, text_format) # Consumo Diário (m³)
+            worksheet.set_column('D:D', 20, integer_format) # Consumo Diário (m³)
             worksheet.set_column('E:E', 25, decimal_format) # Tempo de Bombeamento (h)
             worksheet.set_column('F:F', 15, text_format) # Tempo (HH:MM)
             worksheet.set_column('G:G', 20, integer_format) # Outorga Diária (m³)
