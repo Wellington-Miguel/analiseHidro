@@ -110,7 +110,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
             workbook = writer.book
             worksheet = writer.sheets['Resumo Mensal']
 
-            header_format = workbook.add_format({'bold': True, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center', 'fg_color': '#D7E4BC', 'border': 1})
+            header_format = workbook.add_format({'bold': True, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center', 'fg_color': '#dce6f1', 'border': 1})
             decimal_format = workbook.add_format({'num_format': '#,#00.00', 'align': 'center', 'valign': 'vcenter'})
             integer_format = workbook.add_format({'num_format': '#,##0', 'align': 'center', 'valign': 'vcenter'})
             text_format = workbook.add_format({'num_format': '@', 'align': 'center', 'valign': 'vcenter'})
@@ -119,8 +119,8 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
                 worksheet.write(0, col_num, value, header_format)
 
             # Ajustando a formatação das colunas para incluir a nova
-            worksheet.set_column('A:A', 18) # Data
-            worksheet.set_column('B:B', 18) # Hora Final Leitura
+            worksheet.set_column('A:A', 18, text_format) # Data
+            worksheet.set_column('B:B', 18, text_format) # Hora Final Leitura
             worksheet.set_column('C:C', 22, integer_format) # Vazão Acumulada Final
             worksheet.set_column('D:D', 20, integer_format) # Consumo Diário (m³)
             worksheet.set_column('E:E', 25, decimal_format) # Tempo de Bombeamento (h)
