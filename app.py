@@ -132,7 +132,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
             chart = workbook.add_chart({'type': 'column'})
             chart.add_series({'name': "='Resumo Mensal'!$D$1", 'categories': f"='Resumo Mensal'!$A$2:$A${num_dias + 1}", 'values': f"='Resumo Mensal'!$D$2:$D${num_dias + 1}"})
             chart.add_series({'name': "='Resumo Mensal'!$G$1", 'values': f"='Resumo Mensal'!$G$2:$G${num_dias + 1}"})
-            chart.set_title({'name': 'Consumo Diário vs. Outorga Diária'})
+            chart.set_title({'name': 'Consumo Diário X Vazão Outorgada'})
             chart.set_x_axis({'name': 'Dia'}); chart.set_y_axis({'name': 'Volume (m³)'})
             worksheet.insert_chart('J2', chart, {'x_scale': 1.5, 'y_scale': 1.5}) # Movido para a coluna J
 
