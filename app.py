@@ -121,12 +121,12 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
             # Ajustando a formatação das colunas para incluir a nova
             worksheet.set_column('A:A', 18) # Data
             worksheet.set_column('B:B', 18) # Hora Final Leitura
-            worksheet.set_column('C:C', 22, integer_format) # Vazão Acumulada Final
+            worksheet.set_column('C:C', 22, decimal_format) # Vazão Acumulada Final
             worksheet.set_column('D:D', 20, integer_format) # Consumo Diário (m³)
-            worksheet.set_column('E:E', 25, integer_format) # Tempo de Bombeamento (h)
+            worksheet.set_column('E:E', 25, decimal_format) # Tempo de Bombeamento (h)
             worksheet.set_column('F:F', 15, text_format) # Tempo (HH:MM)
             worksheet.set_column('G:G', 20, integer_format) # Outorga Diária (m³)
-            worksheet.set_column('H:H', 25, integer_format) # % Consumido da Outorga
+            worksheet.set_column('H:H', 25, decimal_format) # % Consumido da Outorga
 
             # Ajustando a referência da Outorga no gráfico para a coluna G
             chart = workbook.add_chart({'type': 'column'})
