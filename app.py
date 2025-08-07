@@ -124,7 +124,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
             worksheet = writer.sheets['Resumo Mensal']
 
             header_format = workbook.add_format({'bold': True, 'text_wrap': True, 'valign': 'vcenter', 'align': 'center', 'fg_color': '#dce6f1', 'border': 1})
-            decimal_format = workbook.add_format({'num_format': '#,##0.00', 'align': 'center', 'valign': 'vcenter'})
+            decimal_format = workbook.add_format({'num_format': '#,#00.00', 'align': 'center', 'valign': 'vcenter'})
             integer_format = workbook.add_format({'num_format': '#,##0', 'align': 'center', 'valign': 'vcenter'})
             text_format = workbook.add_format({'num_format': '@', 'align': 'center', 'valign': 'vcenter'})
 
