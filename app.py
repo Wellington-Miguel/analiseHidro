@@ -4,7 +4,7 @@ from zipfile import ZipFile
 import io
 
 # ============================================================================
-# FUNÇÃO REESCRITA COM A LÓGICA CORRETA DE CÁLCULO DE TEMPO
+# FUNÇÃO FINAL E ROBUSTA COM LÓGICA CORRETA E DETEÇÃO DE FORMATO
 # ============================================================================
 def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
     
@@ -17,8 +17,8 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
         return f"{horas:02d}:{minutos:02d}"
 
     try:
-        # --- ETAPA 1: Ler e juntar todos os ficheiros CSV ---
-        lista_de_dfs_diarios = []
+        # --- ETAPA 1: Ler e limpar cada ficheiro individualmente com deteção de formato ---
+        lista_de_dfs_limpos = []
         with ZipFile(io.BytesIO(arquivo_zip_bytes), 'r') as zip_ref:
             arquivos_csv = sorted([f for f in zip_ref.namelist() if f.upper().endswith('.CSV')])
             
@@ -28,37 +28,56 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
 
             for arquivo in arquivos_csv:
                 with zip_ref.open(arquivo) as f:
-                    df_diario = pd.read_csv(f, encoding='ISO-8859-1', header=None)
-                    if not df_diario.empty:
-                        lista_de_dfs_diarios.append(df_diario)
+                    # Deteção automática do separador e da posição da vazão
+                    primeira_linha = f.readline().decode('iso-8859-1')
+                    f.seek(0)
 
-        if not lista_de_dfs_diarios:
-            st.error("Os ficheiros CSV encontrados estão vazios.")
+                    if ';' in primeira_linha:
+                        separador = ';'
+                        posicao_vazao = 4
+                    else:
+                        separador = ','
+                        posicao_vazao = 5
+                    
+                    df_diario = pd.read_csv(f, encoding='ISO-8859-1', header=None, sep=separador)
+                    
+                    if df_diario.empty or df_diario.shape[1] <= posicao_vazao:
+                        continue
+
+                    # Extrai e limpa os dados de cada ficheiro
+                    df_limpo = df_diario.iloc[:, [1, 2, posicao_vazao]].copy()
+                    df_limpo.columns = ['data_str', 'hora_str', 'vazao_total']
+                    
+                    df_limpo['vazao_total'] = pd.to_numeric(
+                        df_limpo['vazao_total'].astype(str).str.replace(',', '.'), 
+                        errors='coerce'
+                    )
+                    df_limpo.dropna(subset=['vazao_total'], inplace=True)
+                    
+                    if not df_limpo.empty:
+                        lista_de_dfs_limpos.append(df_limpo)
+
+        if not lista_de_dfs_limpos:
+            st.error("Nenhum dado válido pôde ser extraído dos ficheiros CSV.")
             return None
 
-        df_master = pd.concat(lista_de_dfs_diarios, ignore_index=True)
-
-        # --- ETAPA 2: Limpar e ordenar a tabela mestre ---
-        df_filtrado = df_master.iloc[:, [0, 1, 2, 5]].copy()
-        df_filtrado.columns = ['id', 'data_str', 'hora_str', 'vazao_total']
+        # --- ETAPA 2: Juntar, ordenar e processar a tabela mestre ---
+        df_master = pd.concat(lista_de_dfs_limpos, ignore_index=True)
         
-        df_filtrado['vazao_total'] = pd.to_numeric(df_filtrado['vazao_total'], errors='coerce')
-        df_filtrado.dropna(subset=['vazao_total'], inplace=True)
-        
-        df_filtrado['datetime'] = pd.to_datetime(df_filtrado['data_str'] + ' ' + df_filtrado['hora_str'], format='%Y/%m/%d %H:%M:%S', errors='coerce')
-        df_filtrado.dropna(subset=['datetime'], inplace=True)
-        df_filtrado = df_filtrado.sort_values(by='datetime').reset_index(drop=True)
+        df_master['datetime'] = pd.to_datetime(df_master['data_str'] + ' ' + df_master['hora_str'], format='%Y/%m/%d %H:%M:%S', errors='coerce')
+        df_master.dropna(subset=['datetime'], inplace=True)
+        df_master = df_master.sort_values(by='datetime').reset_index(drop=True)
 
         # --- ETAPA 3: Calcular a variação na sequência contínua ---
-        df_filtrado['dif_vazao'] = df_filtrado['vazao_total'].diff() # Não preenchemos com 0 ainda
-        df_filtrado['bombeamento'] = (df_filtrado['dif_vazao'] >= 2)
-        df_filtrado['data'] = df_filtrado['datetime'].dt.date
+        df_master['dif_vazao'] = df_master['vazao_total'].diff()
+        df_master['bombeamento'] = (df_master['dif_vazao'] >= 2)
+        df_master['data'] = df_master['datetime'].dt.date
 
         # --- ETAPA 4: Agrupar por dia para obter os resumos ---
-        resumo_bombeamentos = df_filtrado.groupby('data')['bombeamento'].sum().reset_index()
+        resumo_bombeamentos = df_master.groupby('data')['bombeamento'].sum().reset_index()
         resumo_bombeamentos.rename(columns={'bombeamento': 'num_bombeamentos'}, inplace=True)
 
-        resumo_leituras = df_filtrado.groupby('data').agg(
+        resumo_leituras = df_master.groupby('data').agg(
             hora_final=('hora_str', 'last'),
             vazao_total_final=('vazao_total', 'last')
         ).reset_index()
