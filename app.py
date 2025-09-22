@@ -3,9 +3,7 @@ import pandas as pd
 from zipfile import ZipFile
 import io
 
-# ============================================================================
-# FUNÇÃO FINAL E ROBUSTA COM LÓGICA CORRETA E DETEÇÃO DE FORMATO
-# ============================================================================
+
 def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
     
     # Função auxiliar para converter horas decimais para o formato de texto HH:MM
@@ -17,7 +15,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
         return f"{horas:02d}:{minutos:02d}"
 
     try:
-        # --- ETAPA 1: Ler e limpar cada ficheiro individualmente com deteção de formato ---
+        #Limpar cada ficheiro individualmente e detectar formato ---
         lista_de_dfs_limpos = []
         with ZipFile(io.BytesIO(arquivo_zip_bytes), 'r') as zip_ref:
             arquivos_csv = sorted([f for f in zip_ref.namelist() if f.upper().endswith('.CSV')])
@@ -28,7 +26,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
 
             for arquivo in arquivos_csv:
                 with zip_ref.open(arquivo) as f:
-                    # Deteção automática do separador e da posição da vazão
+                    # Detecção automática do separador e da posição da vazão
                     primeira_linha = f.readline().decode('iso-8859-1')
                     f.seek(0)
 
@@ -44,7 +42,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
                     if df_diario.empty or df_diario.shape[1] <= posicao_vazao:
                         continue
 
-                    # Extrai e limpa os dados de cada ficheiro
+                    #Limpa os dados de cada ficheiro
                     df_limpo = df_diario.iloc[:, [1, 2, posicao_vazao]].copy()
                     df_limpo.columns = ['data_str', 'hora_str', 'vazao_total']
                     
@@ -61,19 +59,19 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
             st.error("Nenhum dado válido pôde ser extraído dos ficheiros CSV.")
             return None
 
-        # --- ETAPA 2: Juntar, ordenar e processar a tabela mestre ---
+        #Ordenar tabela inicial
         df_master = pd.concat(lista_de_dfs_limpos, ignore_index=True)
         
         df_master['datetime'] = pd.to_datetime(df_master['data_str'] + ' ' + df_master['hora_str'], format='%Y/%m/%d %H:%M:%S', errors='coerce')
         df_master.dropna(subset=['datetime'], inplace=True)
         df_master = df_master.sort_values(by='datetime').reset_index(drop=True)
 
-        # --- ETAPA 3: Calcular a variação na sequência contínua ---
+        #Calcular a variação na sequência contínua
         df_master['dif_vazao'] = df_master['vazao_total'].diff()
         df_master['bombeamento'] = (df_master['dif_vazao'] >= 2)
         df_master['data'] = df_master['datetime'].dt.date
 
-        # --- ETAPA 4: Agrupar por dia para obter os resumos ---
+        #Agrupar por dia 
         resumo_bombeamentos = df_master.groupby('data')['bombeamento'].sum().reset_index()
         resumo_bombeamentos.rename(columns={'bombeamento': 'num_bombeamentos'}, inplace=True)
 
@@ -84,7 +82,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
         
         df_final = pd.merge(resumo_leituras, resumo_bombeamentos, on='data')
         
-        # --- ETAPA 5: Calcular as colunas finais do relatório ---
+        #Calcular as colunas finais do relatório
         df_final['tempo_total_bombeamento_horas'] = (df_final['num_bombeamentos'] * 15) / 60
         df_final['tempo_bombeamento_hhmm'] = df_final['tempo_total_bombeamento_horas'].apply(converter_horas_para_hhmm)
         df_final['vazao_outorgada'] = outorga_diaria_definida
@@ -115,7 +113,7 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
                          'vazao_outorgada': 'Vazão Outorgada Diária (m³)', 'porcentagem_consumo_vazao': 'Consumo Diário x Vazão Outorgada (%)'}
         df_final_formatado = df_final.rename(columns=nomes_visuais)
 
-        # --- Criação do Arquivo Excel em Memória ---
+        #Criação do Arquivo Excel 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df_final_formatado.to_excel(writer, sheet_name='Resumo Mensal', index=False)
@@ -155,9 +153,8 @@ def processar_zip(arquivo_zip_bytes, outorga_diaria_definida):
         st.error(traceback.format_exc())
         return None
 
-# ============================================================================
-# INTERFACE DO USUÁRIO COM STREAMLIT
-# ============================================================================
+
+# INTERFACE DO USUÁRIO 
 st.set_page_config(page_title="Gerador de Resumo Mensal", layout="centered")
 st.title("Resumo de Consumo Mensal (Hidrômetro)")
 st.write("Por favor, envie o ficheiro .ZIP com os relatórios diários para gerar o resumo em Excel.")
